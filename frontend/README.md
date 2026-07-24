@@ -1,19 +1,17 @@
-# National Digital Health Systems Monitoring Portal — Frontend Application
+# React + Vite
 
-## Overview
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
-This directory contains the frontend presentation layer for the **National Digital Health Systems Monitoring Portal**. The frontend provides a responsive web application designed to centralize and manage health dashboard displays (such as DHIS2, OpenMRS, and Laboratory Information Systems). It replaces manual browser tab navigation and remote desktop sessions with an interface for controlling screen layouts, managing slot configurations, and displaying live dashboard views.
+Currently, two official plugins are available:
 
----
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
 
-## Technical Stack & Framework
+## React Compiler
 
-- **Framework:** React.js
-- **Build Tool:** Vite / Standard npm toolchain
-- **Styling:** CSS / Tailwind CSS
-- **Language:** JavaScript (ES6+) / HTML5
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
 
----
+## Expanding the ESLint configuration
 
 ## 📂 Project Directory Architecture (`/frontend`)
 
