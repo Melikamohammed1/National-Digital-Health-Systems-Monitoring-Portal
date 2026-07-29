@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root {
+  height: 100%;
+}
+body {
+  @apply bg-white text-ink font-sans text-[13px] antialiased;
+}
+::selection { @apply bg-accentDim; }
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg font-bold text-xs px-3.5 py-2.5
+           transition-transform duration-100 active:scale-[0.98];
+  }
+  .btn-primary {
+    @apply bg-accent text-white shadow-[0_6px_16px_-6px_rgba(47,95,224,0.55)]
+           hover:shadow-[0_8px_20px_-6px_rgba(47,95,224,0.7)];
+  }
+  .btn-ghost {
+    @apply bg-white text-ink border border-border hover:border-borderStrong;
+  }
+  .btn-outline {
+    @apply bg-transparent text-accent border-[1.5px] border-accent hover:bg-accentDim;
+  }
+  .btn-sm { @apply px-2.5 py-1.5 text-[11.5px] rounded-md; }
+  .btn-block { @apply w-full; }
+
+  .card {
+    @apply bg-white border border-border rounded-[10px] mb-4 overflow-hidden
+           shadow-[0_1px_2px_rgba(15,27,51,0.04),0_8px_24px_-12px_rgba(15,27,51,0.12)];
+  }
+  .field-label {
+    @apply text-[9.5px] font-extrabold tracking-wider text-inkFaint uppercase mb-2;
+  }
+  .id-chip {
+    @apply font-mono text-[10.5px] bg-panel2 border border-border text-inkDim px-1.5 py-0.5 rounded-md;
+  }
+  .status-badge {
+    @apply text-[10px] font-extrabold tracking-wide px-2.5 py-1 rounded-full whitespace-nowrap;
+  }
+  .layout-opt {
+    @apply flex items-center gap-1.5 px-2.5 py-1.5 border border-border rounded-md text-[11.5px] font-semibold
+           text-inkDim bg-white;
+  }
+  .layout-opt.sel { @apply border-accent text-accent bg-accentDim; }
+  .layout-opt.disabled { @apply opacity-40 pointer-events-none; }
+
+  .slot-select {
+    @apply flex-1 border border-border rounded-md px-2.5 py-2 text-xs bg-white text-ink font-semibold;
+  }
+  .callout {
+    @apply bg-accentDim border border-borderStrong rounded-lg px-3 py-2.5 text-[11px] leading-relaxed;
+    color: #2748A8;
+  }
+  .form-field {
+    @apply w-full border border-border rounded-lg px-2.5 py-2.5 text-[13px] bg-panel2
+           focus:outline-2 focus:outline-accent focus:bg-white;
+  }
+  .form-label {
+    @apply block text-[10.5px] font-bold tracking-wide text-inkDim uppercase mb-1.5;
+  }
+}
+
+@keyframes pop {
+  from { transform: scale(.96); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.animate-pop { animation: pop .16s ease; }
