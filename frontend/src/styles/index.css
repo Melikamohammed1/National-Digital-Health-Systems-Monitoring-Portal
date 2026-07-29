@@ -68,4 +68,5 @@ body {
   from { transform: scale(.96); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
 }
-.animate-pop { animation: pop .16s ease; }
+.animate-pop { animation: pop .16s ease; }git add src/main.jsx src/styles/index.css
+git commit -m "feat: React entry point and Tailwind setup"
