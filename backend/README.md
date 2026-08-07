@@ -29,7 +29,7 @@ backend/
 
 ---
 
-# 🚀 Current Sprint Focus: Backend Foundation Phase
+#  Current Sprint Focus: Backend Foundation Phase
 
 Development during this sprint is focused on building the backend architecture that will support the frontend application.
 
@@ -167,7 +167,7 @@ The backend will be built using:
 
 ---
 
-# 🤝 Collaboration & Git Workflow Guidelines
+#  Collaboration & Git Workflow Guidelines
 
 To ensure smooth collaboration among backend developers, follow these Git practices.
 
