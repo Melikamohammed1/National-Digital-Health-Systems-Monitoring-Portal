@@ -53,7 +53,7 @@ export default function Login() {
           {busy ? 'Signing in…' : 'Sign In'}
         </button>
         <p className="text-[10.5px] text-inkFaint mt-4 leading-relaxed">
-          Demo build: any username/password signs you in. This is a UI-only placeholder until the backend exposes a real authentication endpoint.
+          Demo build: sign in with a seeded account, e.g. admin / Admin123!
         </p>
       </form>
     </div>
