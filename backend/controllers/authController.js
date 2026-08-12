@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const LoginHistory = require('../models/LoginHistory');
 const { verifyPassword } = require('../utils/hash');
 const { signToken } = require('../utils/jwt');
 
@@ -11,13 +12,17 @@ async function login(req, res) {
 
   const user = User.findByUsername(username);
   if (!user) {
+    LoginHistory.record({ username, success: false, ipAddress: req.ip });
     return res.status(401).json({ message: 'Invalid username or password' });
   }
 
   const passwordMatches = await verifyPassword(password, user.password_hash);
   if (!passwordMatches) {
+    LoginHistory.record({ username, success: false, ipAddress: req.ip });
     return res.status(401).json({ message: 'Invalid username or password' });
   }
+
+  LoginHistory.record({ username, success: true, ipAddress: req.ip });
 
   const token = signToken(user);
   res.json({
@@ -37,5 +42,11 @@ function getProfile(req, res) {
   }
   res.json({ user });
 }
+function getLoginHistory(req, res) {
+  const history = LoginHistory.listAll();
+  res.json({ history });
+}
 
-module.exports = { login, logout, getProfile };
+
+module.exports = { login, logout, getProfile, getLoginHistory };
+

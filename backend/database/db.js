@@ -18,4 +18,14 @@ db.exec(`
   )
 `);
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS login_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL,
+    success INTEGER NOT NULL,
+    ip_address TEXT,
+    attempted_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )
+`);
+
 module.exports = db;
