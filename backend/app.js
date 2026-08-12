@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const authRoutes = require("./routes/authRoutes");
 
 const app = express();
 
@@ -19,6 +20,8 @@ app.get("/api", (req, res) => {
     message: "API is working"
   });
 });
+
+app.use("/api/auth", authRoutes);
 
 
 module.exports = app;
