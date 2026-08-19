@@ -1,266 +1,234 @@
-# National Digital Health Systems Monitoring Portal — Backend
+# Mosaic Wall — Backend
 
-The backend powers the National Digital Health Systems Monitoring Portal by providing REST APIs, business logic, data management, and communication between the frontend application and the database.
-
-This repository is currently in the **initial backend development phase**, where the project structure, API foundation, and core services are being implemented.
+Layered Express backend: `controllers` → `services` → `models` →
+`database`, plus JWT authentication, request validation, centralized
+error handling, and a WebSocket-based interactive remote-browser session
+engine. Built to match the frontend's `src/services/api.js` contract
+exactly, so connecting it is a one-line flag flip, not a rewrite.
 
 ---
 
-# 📂 Project Directory Architecture (`/backend`)
+## 🛠️ Getting Started
+
+```bash
+npm install
+cp .env.example .env   # optional — sensible defaults work without this
+npm start               # or: npm run dev  (auto-restarts on file changes)
+```
+
+Server runs at **http://localhost:4000**. `data.sqlite` is created next to
+`server.js` on first run — delete it to reset to seed data. If an old
+`data.json` (from before the SQLite migration) is sitting there on that
+first run, it's migrated in automatically and renamed to
+`data.json.migrated` as a backup.
+
+Requires **Node 22.5+** — storage uses Node's built-in `node:sqlite`
+(no native module to install or compile), which only exists from that
+version onward.
+
+```bash
+npm test                # runs tests/ via Node's built-in test runner
+node test-puppeteer.js   # isolates Puppeteer/Chromium problems from app problems
+```
+
+Optional — only needed for live interactive sessions and admin-thumbnail
+screenshots (downloads a ~200MB Chromium binary, so not installed by
+default):
+
+```bash
+npm install puppeteer
+```
+
+---
+
+## 📂 Project Directory Architecture
 
 ```text
 backend/
-├── config/                 # Application configuration files (environment, database)
-├── controllers/            # Request handlers and business logic
-├── middleware/             # Authentication, validation, logging, and error handling
-├── models/                 # Database models and schemas
-├── routes/                 # API route definitions
-├── services/               # Core application services and reusable logic
-├── utils/                  # Helper functions and utility modules
-├── database/               # Database connection and migration files
-├── tests/                  # Unit and integration tests
-├── app.js                  # Express application configuration
-├── server.js               # Server entry point
+├── config/
+│   └── env.js                  # centralized environment variable loading
+├── controllers/                 # request handlers — parse req, call a service, send res
+│   ├── authController.js
+│   ├── screensController.js
+│   ├── targetsController.js
+│   ├── embeddingController.js    # proxy + screenshot
+│   └── monitoringController.js    # health + status
+├── middleware/
+│   ├── auth.js                  # requireAuth — JWT verification
+│   ├── validate.js               # validateBody(['field', ...]) factory
+│   ├── notFound.js                # 404 for unmatched /api routes
+│   └── errorHandler.js             # centralized error → JSON response (must be last)
+├── models/                      # data access ONLY — no business logic
+│   ├── Screen.js
+│   ├── Target.js
+│   └── User.js
+├── routes/                      # wires HTTP paths to controllers
+│   ├── index.js                   # mounts everything under /api
+│   ├── screens.routes.js
+│   ├── targets.routes.js
+│   ├── auth.routes.js
+│   ├── embedding.routes.js
+│   └── monitoring.routes.js
+├── services/                    # business logic — the layer controllers call into
+│   ├── screenService.js
+│   ├── targetService.js
+│   ├── authService.js
+│   ├── embeddingProxyService.js   # Live Embed mode
+│   ├── screenshotService.js        # admin-thumbnail screenshots
+│   ├── interactiveSessionService.js # the WebSocket engine
+│   └── browserService.js            # shared lazy Puppeteer instance
+├── database/
+│   ├── connection.js             # SQLite connection, schema, legacy-JSON migration
+│   └── seed.js                    # seed data for a brand-new database (demo admin only)
+├── utils/
+│   ├── asyncHandler.js            # wraps async route handlers for error forwarding
+│   ├── HttpError.js                # Error subclass carrying an HTTP status
+│   ├── jwt.js                       # sign/verify wrapper
+│   └── normalizeEmbedUrl.js          # YouTube/Vimeo embed-URL rewriting
+├── tests/
+│   ├── health.test.js
+│   ├── screens.test.js
+│   └── auth.test.js
+├── app.js                        # Express config — no listening (importable by tests)
+├── server.js                      # entry point — http server + WebSocket + listen()
 ├── package.json
 ├── .env.example
 ├── .gitignore
 └── README.md
 ```
 
----
+**Why `app.js` and `server.js` are split:** `app.js` exports the
+configured Express app without calling `.listen()`, so `tests/*.test.js`
+can `require('../app')` and spin up an ephemeral server per test without
+port conflicts or a real process running. `server.js` is the only file
+that actually starts listening — it's what `npm start` runs.
 
-#  Current Sprint Focus: Backend Foundation Phase
-
-Development during this sprint is focused on building the backend architecture that will support the frontend application.
-
-## Backend Key Deliverables
-
-### Express Server Setup
-
-- Configure Express.js application
-- Environment variable management
-- Middleware configuration
-- Project folder structure
-
-### REST API Foundation
-
-Implement the first version of the REST API including:
-
-- Screen Management endpoints
-- Authentication endpoints
-- Health check endpoint
-- Error handling
-
-### Database Integration
-
-- Configure database connection
-- Define initial database schema
-- Create models for core entities
-
-### Authentication System
-
-- User login
-- Session management
-- Password hashing
-- Protected routes
-
-### Business Logic Layer
-
-Develop reusable service modules responsible for:
-
-- Screen management
-- User management
-- System configuration
-
-### Validation & Error Handling
-
-- Request validation
-- Centralized error responses
-- Input sanitization
+**On storage:** `database/connection.js` opens a real SQLite database via
+Node's built-in `node:sqlite` (synchronous `prepare`/`run`/`get`/`all` —
+no third-party driver, nothing to native-compile). Models talk to it
+directly with SQL; controllers/services/routes never touch it. This
+replaced an earlier JSON-file-store phase — `connection.js` still
+contains the one-time migration path that reads a legacy `data.json`
+(if found) into the new database on first run.
 
 ---
 
-# 🛠️ Getting Started
+## 📡 API Reference
 
-## Prerequisites
+### Screens
+| Method | Path | Body | Notes |
+|---|---|---|---|
+| GET | `/api/screens` | — | List all |
+| GET | `/api/screens/:id` | — | 404 if not found |
+| POST | `/api/screens` | `{ name, layout?, passcode? }` | `name` required |
+| PATCH | `/api/screens/:id` | `{ layout?, slots?, status?, ... }` | Partial update |
+| POST | `/api/screens/:id/reconnect` | — | Sets status to `online` |
+| DELETE | `/api/screens/:id` | — | 204 on success |
 
-- Node.js v18.0.0 or higher
-- npm v9.0.0 or higher
+### Targets (externally-built systems)
+| Method | Path | Body |
+|---|---|---|
+| GET | `/api/targets` | — |
+| POST | `/api/targets` | `{ name, url, mode }` — `mode` is `iframe` or `interactive` |
+| DELETE | `/api/targets/:key` | — |
 
-## Local Setup Instructions
+### Embedding
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/proxy?url=` | Live Embed mode — strips framing-restriction headers |
+| GET | `/api/screenshot?url=` | Single-frame screenshot (admin thumbnails) |
+| WS | `/ws/interact` | Interactive Remote Session — live streamed browser + input forwarding |
 
-Navigate to the backend directory:
+### Auth
+| Method | Path | Body | Notes |
+|---|---|---|---|
+| POST | `/api/auth/login` | `{ username, password }` | Returns `{ token, user }`. Seeded demo account: `admin` / `admin123` (see `.env.example`) |
+| POST | `/api/auth/logout` | — | Stateless JWT — client just discards the token |
+| GET | `/api/auth/me` | — | **Protected.** Requires `Authorization: Bearer <token>` |
 
-```bash
-cd backend
-```
-
-Install dependencies:
-
-```bash
-npm install
-```
-
-Start the development server:
-
-```bash
-npm run dev
-```
-
-or
-
-```bash
-npm start
-```
-
-The backend server will run on:
-
-```
-http://localhost:4000
-```
-
----
-
-# 📡 Planned API Modules
-
-The backend will gradually expose RESTful APIs for the following modules.
-
-## Authentication
-
-- User Login
-- User Logout
-- Session Validation
-
-## Screen Management
-
-- Register Screen
-- Update Screen
-- Delete Screen
-- Retrieve Screen Information
-
-## System Management
-
-- Register External Systems
-- Update System Configuration
-- Remove Systems
-
-## Monitoring
-
-- Screen Status
-- System Status
-- Health Monitoring
+### Monitoring
+| Method | Path | Returns |
+|---|---|---|
+| GET | `/api/health` | `{ status, uptimeSeconds, timestamp }` |
+| GET | `/api/monitoring/status` | `{ totalScreens, online, standby, offline }` |
 
 ---
 
-# 🧩 Planned Technologies
+## Connecting the frontend
 
-The backend will be built using:
+Same as before — this hasn't changed:
 
-- Node.js
-- Express.js
-- JavaScript (ES6+)
-- REST API
-- JWT Authentication
-- bcrypt
-- Database (To Be Finalized)
-- dotenv
+1. In the frontend, `src/services/api.js`: set `USE_MOCK = false`.
+2. Dev: run this backend (`npm start`, `:4000`) and the frontend
+   (`npm run dev`, `:5173`) side by side — `vite.config.js` already
+   proxies `/api` and `/ws` to `:4000`.
+3. Production: `npm run build` the frontend, copy `dist/` into
+   `./frontend/dist` here, then just `npm start` — one origin, no proxy.
+
+### Important: auth is not wired to the frontend yet — on purpose
+
+This backend now has a **real, working** auth system — JWT, bcrypt,
+`/api/auth/login`, protected-route middleware, all tested. But
+`/api/screens` and `/api/targets` are **deliberately not** behind
+`requireAuth` yet, because the frontend's `AuthContext` is still the
+client-side-only placeholder that never calls a backend endpoint or
+attaches a token. Protecting those routes now would mean flipping
+`USE_MOCK = false` instantly breaks the whole app with 401s.
+
+When you're ready to close that gap, it's a small, contained change:
+
+**1. Frontend — `src/context/AuthContext.jsx`:** replace the placeholder
+`login()` body with a real call:
+```js
+const res = await fetch('/api/auth/login', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ username, password })
+});
+if (!res.ok) throw new Error((await res.json()).error);
+const { token, user } = await res.json();
+localStorage.setItem('ndhs_token', token); // alongside the existing user storage
+setUser(user);
+```
+
+**2. Frontend — `src/services/api.js`:** attach the token to every
+request:
+```js
+const token = localStorage.getItem('ndhs_token');
+const res = await fetch(path, {
+  headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
+  ...opts
+});
+```
+
+**3. Backend — `routes/screens.routes.js` and `routes/targets.routes.js`:**
+add `requireAuth` to whichever routes should require it:
+```js
+const requireAuth = require('../middleware/auth');
+router.use(requireAuth); // protects every route below this line in the file
+```
+
+Do all three together, not one at a time — doing only step 3 first locks
+the frontend out; doing only steps 1–2 first just means the token is
+fetched and stored but nothing checks it yet (harmless, but pointless on
+its own).
 
 ---
 
-#  Collaboration & Git Workflow Guidelines
+## Known limitations
 
-To ensure smooth collaboration among backend developers, follow these Git practices.
-
-## Branch Naming Conventions
-
-Always create feature branches from `main`.
-
-```bash
-feat/authentication
-feat/screen-api
-feat/database-setup
-feat/error-handler
-feat/user-management
-```
-
-## Development Workflow
-
-Pull the latest changes:
-
-```bash
-git checkout main
-git pull origin main
-```
-
-Create a feature branch:
-
-```bash
-git checkout -b feat/your-feature-name
-```
-
-Commit changes using meaningful prefixes.
-
-- **feat:** New backend feature
-- **fix:** Bug fixes
-- **refactor:** Code improvements
-- **test:** Tests
-- **docs:** Documentation
-
-Example:
-
-```bash
-git commit -m "feat(auth): implement login endpoint"
-```
-
-Push your branch:
-
-```bash
-git push origin feat/your-feature-name
-```
-
-Create a Pull Request for review before merging.
-
----
-
-# 📌 Development Roadmap
-
-The backend development will progress through the following milestones.
-
-### Phase 1
-
-- Project setup
-- Express configuration
-- Folder architecture
-- Git workflow
-
-### Phase 2
-
-- Database integration
-- Models
-- CRUD APIs
-
-### Phase 3
-
-- Authentication
-- Authorization
-- Protected routes
-
-### Phase 4
-
-- Validation
-- Error handling
-- Logging
-
-### Phase 5
-
-- Testing
-- Performance improvements
-- Deployment preparation
-
----
-
-# 📄 Notes
-
-- The backend is currently under active development.
-- API endpoints and project architecture may evolve as new features are implemented.
-- Documentation will be updated continuously throughout development to reflect the latest implementation.
+- JWT "logout" is stateless — no server-side token invalidation
+  (blacklist/refresh-token rotation) yet. Fine for this phase; worth
+  revisiting before production if session revocation matters.
+- Storage is SQLite via Node's built-in `node:sqlite`, which Node itself
+  still flags as an experimental API (stable behavior, but the API shape
+  could change in a future Node release). A single SQLite file is also
+  still single-writer — fine for one backend instance, not a fit for
+  multiple instances behind a load balancer without moving to a
+  client-server database (Postgres, etc.) at that point.
+- The embedding proxy (`/api/proxy`) is best-effort — it can't defeat
+  JavaScript frame-busting. Use Interactive Remote Session (`/ws/interact`)
+  for sites that actively fight embedding.
+- `JWT_SECRET` defaults to an insecure placeholder in dev — the console
+  won't warn you, so double-check `.env` sets a real one before deploying
+  anywhere reachable.
