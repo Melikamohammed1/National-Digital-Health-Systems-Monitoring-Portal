@@ -11,27 +11,54 @@ const LAYOUT_ICON = {
   custom: <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="7" height="12" rx="1" stroke="currentColor" strokeWidth="1.4" /><rect x="10.5" y="2" width="3.5" height="12" rx="1" stroke="currentColor" strokeWidth="1.4" /></svg>
 };
 
-export default function ScreenCard({ screen: scr, targets, onUpdate, onPush, onReconnect, onOpenClient, onQuickBrowse, toast }) {
+export default function ScreenCard({ screen: scr, targets, isAdmin, onUpdate, onPush, onReconnect, onDelete, onOpenClient, onQuickBrowse, toast }) {
   const [pushed, setPushed] = useState(false);
   const [quickInputs, setQuickInputs] = useState({});
+  const [dragFrom, setDragFrom] = useState(null);
   const isOffline = scr.status === 'offline';
   const dims = gridDims(scr);
+  const hasTargets = Object.keys(targets).length > 0;
+  // Falls back to all-1s if a screen predates slotSpans or its length
+  // hasn't caught up with a just-changed slot count yet.
+  const spans = (scr.slotSpans && scr.slotSpans.length === scr.slots.length) ? scr.slotSpans : scr.slots.map(() => 1);
 
   function setLayout(newLayout) {
     const n = newLayout === 'custom' ? (scr.customCount || scr.slots.length || 2) : LAYOUTS[newLayout].n;
     const slots = Array.from({ length: n }, (_, i) => scr.slots[i] || null);
-    onUpdate({ layout: newLayout, slots });
+    const slotSpans = Array.from({ length: n }, (_, i) => spans[i] || 1);
+    onUpdate({ layout: newLayout, slots, slotSpans });
   }
   function stepCustomCount(dir) {
     let n = scr.slots.length + (dir === 'inc' ? 1 : -1);
     n = Math.max(CUSTOM_MIN, Math.min(CUSTOM_MAX, n));
     const slots = Array.from({ length: n }, (_, i) => scr.slots[i] || null);
-    onUpdate({ slots, customCount: n });
+    const slotSpans = Array.from({ length: n }, (_, i) => spans[i] || 1);
+    onUpdate({ slots, slotSpans, customCount: n });
   }
   function setSlot(i, value) {
     const slots = scr.slots.slice();
     slots[i] = value || null;
     onUpdate({ slots });
+  }
+  function setSpan(i, delta) {
+    const next = spans.slice();
+    next[i] = Math.max(1, Math.min(dims.cols, (next[i] || 1) + delta));
+    onUpdate({ slotSpans: next });
+  }
+  // Native HTML5 drag-and-drop — no extra library needed just to let two
+  // slots swap which target they show.
+  function onDragStart(i) {
+    setDragFrom(i);
+  }
+  function onDragOverSlot(e) {
+    e.preventDefault();
+  }
+  function onDropSlot(i) {
+    if (dragFrom === null || dragFrom === i) { setDragFrom(null); return; }
+    const slots = scr.slots.slice();
+    [slots[dragFrom], slots[i]] = [slots[i], slots[dragFrom]];
+    onUpdate({ slots });
+    setDragFrom(null);
   }
   function handleQuickSubmit(i) {
     const val = (quickInputs[i] || '').trim();
@@ -66,7 +93,7 @@ export default function ScreenCard({ screen: scr, targets, onUpdate, onPush, onR
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-[1fr_250px] border-t border-border">
-        <div className={`px-4.5 py-4 md:border-r border-border ${isOffline ? 'opacity-45 pointer-events-none' : ''}`}>
+        <div className={`px-4.5 py-4 md:border-r border-border ${(isOffline || !isAdmin) ? 'opacity-45 pointer-events-none' : ''}`}>
           <div className="field-label">Layout</div>
           <div className="flex gap-1.5 flex-wrap mb-4">
             {Object.entries(LAYOUTS).map(([key, l]) => {
@@ -98,17 +125,50 @@ export default function ScreenCard({ screen: scr, targets, onUpdate, onPush, onR
             </div>
           )}
 
-          <div className="field-label">
-            Slot Configuration <span className="text-inkFaint font-semibold normal-case tracking-normal">({scr.slots.length} slot{scr.slots.length > 1 ? 's' : ''})</span>
+          <div className="field-label flex items-center gap-1.5">
+            Slot Configuration <span className="text-inkFaint font-semibold normal-case tracking-normal">({scr.slots.length} slot{scr.slots.length > 1 ? 's' : ''} — drag ⠿ to rearrange{scr.layout === 'custom' ? ', +/− to resize' : ''})</span>
           </div>
+          {!hasTargets && (
+            <p className="text-[11px] text-inkFaint mb-3 leading-relaxed">
+              No systems added yet — use the search bar below on any slot, or
+              <b> + Add New System / Website</b> in the sidebar.
+            </p>
+          )}
           {scr.slots.map((val, i) => (
-            <div key={i} className="mb-2.5">
+            <div
+              key={i}
+              className={`mb-2.5 rounded-md ${dragFrom === i ? 'opacity-40' : ''}`}
+              onDragOver={onDragOverSlot}
+              onDrop={() => onDropSlot(i)}
+            >
               <div className="flex items-center gap-2.5 mb-1">
-                <span className="text-[10px] font-bold text-inkFaint w-9 shrink-0">Slot {i + 1}</span>
+                <span
+                  draggable
+                  onDragStart={() => onDragStart(i)}
+                  title="Drag to swap with another slot"
+                  className="w-9 shrink-0 text-[10px] font-bold text-inkFaint cursor-grab active:cursor-grabbing select-none flex items-center gap-0.5"
+                >
+                  ⠿ {i + 1}
+                </span>
                 <select className={`slot-select ${!val ? 'text-inkFaint font-medium italic' : ''}`} value={val || ''} onChange={(e) => setSlot(i, e.target.value)}>
                   <option value="">— Empty — click to assign —</option>
                   {Object.entries(targets).map(([k, t]) => <option key={k} value={k}>{t.name}</option>)}
                 </select>
+                {scr.layout === 'custom' && (
+                  <div className="flex items-center gap-1 shrink-0" title="Span (grid columns wide)">
+                    <button
+                      className="w-5 h-5 rounded border border-borderStrong bg-white text-accent font-extrabold text-[11px] flex items-center justify-center disabled:opacity-35"
+                      disabled={spans[i] <= 1}
+                      onClick={() => setSpan(i, -1)}
+                    >−</button>
+                    <span className="text-[10px] font-bold text-inkDim w-3 text-center">{spans[i]}</span>
+                    <button
+                      className="w-5 h-5 rounded border border-borderStrong bg-white text-accent font-extrabold text-[11px] flex items-center justify-center disabled:opacity-35"
+                      disabled={spans[i] >= dims.cols}
+                      onClick={() => setSpan(i, 1)}
+                    >+</button>
+                  </div>
+                )}
               </div>
               <div className="flex items-center gap-2.5">
                 <span className="w-9 shrink-0" />
@@ -134,7 +194,11 @@ export default function ScreenCard({ screen: scr, targets, onUpdate, onPush, onR
           >
             {isOffline
               ? <span>Signal lost</span>
-              : scr.slots.map((k, i) => <MiniCell key={i} targetKey={k} targets={targets} />)}
+              : scr.slots.map((k, i) => (
+                <div key={i} style={{ gridColumn: `span ${spans[i]}` }}>
+                  <MiniCell targetKey={k} targets={targets} />
+                </div>
+              ))}
           </div>
           <div className="mt-2.5">
             <button
@@ -152,20 +216,30 @@ export default function ScreenCard({ screen: scr, targets, onUpdate, onPush, onR
         {isOffline ? (
           <>
             <div className="text-[11.5px] text-inkDim">⏱ Last seen {scr.lastSeen || '—'}</div>
-            <Button variant="primary" size="sm" onClick={onReconnect}>↻ Force Reconnect Display</Button>
+            {isAdmin && (
+              <div className="flex gap-2">
+                <Button variant="primary" size="sm" onClick={onReconnect}>↻ Force Reconnect Display</Button>
+                <Button variant="ghost" size="sm" className="text-crit" onClick={onDelete}>🗑 Delete</Button>
+              </div>
+            )}
           </>
         ) : (
           <>
             <span className="font-mono text-[10.5px] text-inkFaint">{location.origin}/display/{scr.id}</span>
             <div className="flex gap-2">
               <Button variant="ghost" size="sm" onClick={copyUrl}>⧉ Copy Screen URL</Button>
-              <button
-                className="btn btn-sm text-white"
-                style={{ background: pushed ? '#1F9D57' : '#2F5FE0' }}
-                onClick={handlePush}
-              >
-                {pushed ? '✓ Pushed' : '⚡ Push Changes Live'}
-              </button>
+              {isAdmin && (
+                <>
+                  <button
+                    className="btn btn-sm text-white"
+                    style={{ background: pushed ? '#1F9D57' : '#2F5FE0' }}
+                    onClick={handlePush}
+                  >
+                    {pushed ? '✓ Pushed' : '⚡ Push Changes Live'}
+                  </button>
+                  <Button variant="ghost" size="sm" className="text-crit" onClick={onDelete}>🗑 Delete</Button>
+                </>
+              )}
             </div>
           </>
         )}
