@@ -4,19 +4,26 @@ import Header from '../components/layout/Header.jsx';
 import ScreenCard from '../components/orchestrator/ScreenCard.jsx';
 import RegisterScreenModal from '../components/orchestrator/RegisterScreenModal.jsx';
 import AddSystemModal from '../components/orchestrator/AddSystemModal.jsx';
+import UserManagementModal from '../components/orchestrator/UserManagementModal.jsx';
+import ActivityLogModal from '../components/orchestrator/ActivityLogModal.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
-import { TARGETS as BUILTIN_TARGETS, buildTargetEntry } from '../services/mockDashboards.js';
-import { getScreens, getTargets, createScreen, patchScreen, reconnectScreen, createTarget, USE_MOCK } from '../services/api.js';
+import { buildTargetEntry } from '../services/targetHelpers.js';
+import { getScreens, getTargets, createScreen, patchScreen, reconnectScreen, deleteScreen, createTarget, updateTarget, deleteTarget, USE_MOCK } from '../services/api.js';
 import { toBrowseUrl } from '../utils/urlHelpers.js';
 
 export default function Orchestrator() {
   const toast = useToast();
+  const { isAdmin } = useAuth();
   const [screens, setScreens] = useState([]);
   const [customTargets, setCustomTargets] = useState({});
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
-  const [showAddSystem, setShowAddSystem] = useState(false);
+  const [showUsers, setShowUsers] = useState(false);
+  const [showActivity, setShowActivity] = useState(false);
+  // null = closed, 'new' = Add System modal, a target key = editing that target.
+  const [targetModal, setTargetModal] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -33,7 +40,7 @@ export default function Orchestrator() {
   }, []);
 
   const targets = useMemo(() => {
-    const merged = { ...BUILTIN_TARGETS };
+    const merged = {};
     Object.entries(customTargets).forEach(([key, t]) => { merged[key] = buildTargetEntry(t); });
     return merged;
   }, [customTargets]);
@@ -47,7 +54,7 @@ export default function Orchestrator() {
   async function pushChanges(id) {
     const scr = screens.find((s) => s.id === id);
     try {
-      await patchScreen(id, { layout: scr.layout, slots: scr.slots });
+      await patchScreen(id, { layout: scr.layout, slots: scr.slots, slotSpans: scr.slotSpans });
       toast(`Changes pushed live to ${id} — any open client view will pick this up within a few seconds`);
     } catch {
       toast('Push failed — changes were not saved to the server');
@@ -65,6 +72,36 @@ export default function Orchestrator() {
     }
   }
 
+  async function removeScreen(id) {
+    const scr = screens.find((s) => s.id === id);
+    if (!scr) return;
+    if (!window.confirm(`Delete "${scr.name}"? This removes it permanently and can't be undone.`)) return;
+    try {
+      await deleteScreen(id);
+      setScreens((prev) => prev.filter((s) => s.id !== id));
+      toast(`${scr.name} deleted`);
+    } catch (err) {
+      toast(err.message || 'Could not delete screen');
+    }
+  }
+
+  async function removeTarget(key) {
+    const t = customTargets[key];
+    if (!t) return;
+    if (!window.confirm(`Remove "${t.name}"? Any screen slot currently showing it will fall back to "No source assigned".`)) return;
+    try {
+      await deleteTarget(key);
+      setCustomTargets((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+      toast(`${t.name} removed`);
+    } catch (err) {
+      toast(err.message || 'Could not remove system');
+    }
+  }
+
   async function registerScreen({ name, layout, passcode }) {
     const screen = await createScreen({ name, layout, passcode });
     setScreens((prev) => [...prev, screen]);
@@ -72,18 +109,25 @@ export default function Orchestrator() {
     toast(`${name} registered — screen link generated`);
   }
 
-  async function addSystem({ name, url, mode }) {
-    const t = await createTarget({ name, url, mode });
-    setCustomTargets((prev) => ({ ...prev, [t.key]: t }));
-    setShowAddSystem(false);
-    toast(t.note ? `${name} added — ${t.note}` : `${name} added — assign it to a slot below`);
+  async function saveSystem({ name, url, mode, deviceType, refreshSeconds }) {
+    const editingKey = targetModal !== 'new' ? targetModal : null;
+    if (editingKey) {
+      const t = await updateTarget(editingKey, { name, url, mode, deviceType, refreshSeconds });
+      setCustomTargets((prev) => ({ ...prev, [editingKey]: t }));
+      toast(`${name} updated`);
+    } else {
+      const t = await createTarget({ name, url, mode, deviceType, refreshSeconds });
+      setCustomTargets((prev) => ({ ...prev, [t.key]: t }));
+      toast(t.note ? `${name} added — ${t.note}` : `${name} added — assign it to a slot below`);
+    }
+    setTargetModal(null);
   }
 
   async function quickBrowse(screenId, slotIndex, input) {
     const url = toBrowseUrl(input);
     const label = input.length > 28 ? input.slice(0, 28) + '…' : input;
     try {
-      const t = await createTarget({ name: `Search: ${label}`, url, mode: 'interactive' });
+      const t = await createTarget({ name: `Search: ${label}`, url, mode: 'interactive', deviceType: 'desktop' });
       setCustomTargets((prev) => ({ ...prev, [t.key]: t }));
       const scr = screens.find((s) => s.id === screenId);
       const slots = scr.slots.slice();
@@ -107,8 +151,11 @@ export default function Orchestrator() {
     <div className="flex min-h-screen">
       <Sidebar
         targets={targets}
-        onLaunchRouter={() => toast('Master Router — orchestration session started')}
-        onAddSystem={() => setShowAddSystem(true)}
+        onAddSystem={() => setTargetModal('new')}
+        onEditTarget={(key) => setTargetModal(key)}
+        onRemoveTarget={removeTarget}
+        onManageUsers={() => setShowUsers(true)}
+        onViewActivity={() => setShowActivity(true)}
       />
 
       <main className="flex-1 min-w-0 px-6 md:px-7 pt-5.5 pb-16">
@@ -124,7 +171,7 @@ export default function Orchestrator() {
               <span className="text-[#C0392B]">● {offline} Offline</span>
             </div>
           </div>
-          <button className="btn btn-outline" onClick={() => setShowRegister(true)}>+ Register New Physical Screen</button>
+          {isAdmin && <button className="btn btn-outline" onClick={() => setShowRegister(true)}>+ Register New Physical Screen</button>}
         </div>
 
         {USE_MOCK && (
@@ -140,14 +187,22 @@ export default function Orchestrator() {
             Could not reach the backend at <code>/api/screens</code>. Make sure the server is running (<code>npm start</code> in the project root).
           </div>
         )}
+        {!loading && !loadError && screens.length === 0 && (
+          <div className="text-center py-20 text-inkDim">
+            <p className="text-sm font-semibold mb-1">No screens registered yet.</p>
+            <p className="text-[12.5px]">Click <b>+ Register New Physical Screen</b> above to add the first one.</p>
+          </div>
+        )}
         {!loading && !loadError && screens.map((scr) => (
           <ScreenCard
             key={scr.id}
             screen={scr}
             targets={targets}
+            isAdmin={isAdmin}
             onUpdate={(patch) => updateScreen(scr.id, patch)}
             onPush={() => pushChanges(scr.id)}
             onReconnect={() => doReconnect(scr.id)}
+            onDelete={() => removeScreen(scr.id)}
             onOpenClient={() => openClientView(scr.id)}
             onQuickBrowse={(slotIndex, input) => quickBrowse(scr.id, slotIndex, input)}
             toast={toast}
@@ -156,7 +211,16 @@ export default function Orchestrator() {
       </main>
 
       {showRegister && <RegisterScreenModal onCancel={() => setShowRegister(false)} onCreate={registerScreen} onError={toast} />}
-      {showAddSystem && <AddSystemModal onCancel={() => setShowAddSystem(false)} onCreate={addSystem} onError={toast} />}
+      {targetModal && (
+        <AddSystemModal
+          onCancel={() => setTargetModal(null)}
+          onSave={saveSystem}
+          onError={toast}
+          initial={targetModal !== 'new' ? targets[targetModal] : null}
+        />
+      )}
+      {showUsers && <UserManagementModal onClose={() => setShowUsers(false)} onError={toast} />}
+      {showActivity && <ActivityLogModal onClose={() => setShowActivity(false)} onError={toast} />}
     </div>
   );
 }
