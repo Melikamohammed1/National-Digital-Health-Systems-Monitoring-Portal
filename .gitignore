@@ -1,0 +1,6 @@
+# The original working copies of the app — kept outside the tracked
+# backend/ and frontend/ folders during the Git reorganization so the
+# running dev servers are never touched. Not part of the repo.
+ndhs-backend/
+ndhs-frontend/
+package-lock.json.orphaned-stub
