@@ -1,2 +1,10 @@
 node_modules/
+data.json
+data.json.migrated
+data.sqlite
+tests/.test-*.json
+tests/.test-*.sqlite
+screenshot.jpg
 .env
+frontend/
+npm-debug.log*

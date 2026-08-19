@@ -20,5 +20,5 @@ export default function Toast({ message }) {
     >
       {text}
     </div>
-  )
+  );
 }

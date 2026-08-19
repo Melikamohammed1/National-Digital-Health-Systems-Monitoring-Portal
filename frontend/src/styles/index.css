@@ -7,6 +7,9 @@ html, body, #root {
 }
 body {
   @apply bg-white text-ink font-sans text-[13px] antialiased;
+  /* Kiosk/touchscreen: avoid the browser's own pull-to-refresh / overscroll
+     bounce interfering with in-app touch gestures on the interactive canvas. */
+  overscroll-behavior: none;
 }
 ::selection { @apply bg-accentDim; }
 
