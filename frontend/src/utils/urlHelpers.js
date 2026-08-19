@@ -1,8 +1,7 @@
 /** Turns free-typed input into a browsable URL. A bare domain/URL is used
- *  as-is; anything else is treated as a search query. Defaults to
- *  DuckDuckGo rather than Google — it tolerates automated/headless
- *  browser traffic far better, so live demo sessions are much less likely
- *  to hit a CAPTCHA or bot-detection wall mid-demonstration. */
+ *  as-is; anything else is treated as a search query on DuckDuckGo, which
+ *  tolerates automated browser traffic far better than Google for this
+ *  kind of live demo use. */
 export function toBrowseUrl(input) {
   const trimmed = input.trim();
   const looksLikeUrl = /^(https?:\/\/)?([\w-]+\.)+[a-z]{2,}(\/.*)?$/i.test(trimmed) && !trimmed.includes(' ');

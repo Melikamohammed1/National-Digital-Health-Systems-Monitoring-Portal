@@ -34,7 +34,7 @@ export default function Login() {
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M2 12h4l2-7 4 14 3-9 2 5h5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
           </div>
           <div className="text-[12px] font-extrabold leading-tight">
-            NATIONAL DIGITAL<span className="block text-accent">HEALTH SYSTEMS</span>
+            MOSAIC<span className="block text-accent">WALL</span>
           </div>
         </div>
 
@@ -53,7 +53,7 @@ export default function Login() {
           {busy ? 'Signing in…' : 'Sign In'}
         </button>
         <p className="text-[10.5px] text-inkFaint mt-4 leading-relaxed">
-          Demo build: any username/password signs you in. This is a UI-only placeholder until the backend exposes a real authentication endpoint.
+          Sign-in is verified against the backend — the Orchestrator and its write actions require a valid session.
         </p>
       </form>
     </div>

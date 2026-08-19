@@ -1,24 +1,23 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { gridDims } from '../utils/gridHelpers.js';
-import { getScreen, getTargets } from '../services/api.js';
-import { TARGETS as BUILTIN_TARGETS, buildTargetEntry } from '../services/mockDashboards.js';
+import { getScreen, getTargets, heartbeatScreen } from '../services/api.js';
+import { buildTargetEntry } from '../services/targetHelpers.js';
 import FullCell from '../components/display/FullCell.jsx';
 
 export default function LiveDisplay() {
   const { screenId } = useParams();
   const navigate = useNavigate();
   const [screen, setScreen] = useState(null);
-  const [targets, setTargets] = useState(BUILTIN_TARGETS);
+  const [targets, setTargets] = useState({});
   const [error, setError] = useState(false);
 
-  // Initial load
   useEffect(() => {
     (async () => {
       try {
         const [scr, customTargets] = await Promise.all([getScreen(screenId), getTargets()]);
         setScreen(scr);
-        const merged = { ...BUILTIN_TARGETS };
+        const merged = {};
         Object.entries(customTargets).forEach(([key, t]) => { merged[key] = buildTargetEntry(t); });
         setTargets(merged);
       } catch {
@@ -27,23 +26,35 @@ export default function LiveDisplay() {
     })();
   }, [screenId]);
 
-  // Poll so this "physical screen" reflects admin pushes automatically —
-  // no manual refresh needed on the monitor itself.
+  // Proves to the backend this screen is actually up — this is what makes
+  // its status real-time instead of a manually-set claim. See
+  // Screen.sweepOffline on the backend for the other half.
+  useEffect(() => {
+    heartbeatScreen(screenId).catch(() => {});
+    const t = setInterval(() => { heartbeatScreen(screenId).catch(() => {}); }, 15000);
+    return () => clearInterval(t);
+  }, [screenId]);
+
+  // Poll so this "physical screen" reflects admin pushes automatically.
   useEffect(() => {
     const t = setInterval(async () => {
       try {
         const fresh = await getScreen(screenId);
         setScreen((current) => {
           if (!current) return fresh;
-          if (JSON.stringify(fresh.slots) !== JSON.stringify(current.slots) || fresh.layout !== current.layout) {
+          if (
+            JSON.stringify(fresh.slots) !== JSON.stringify(current.slots) ||
+            JSON.stringify(fresh.slotSpans) !== JSON.stringify(current.slotSpans) ||
+            fresh.layout !== current.layout
+          ) {
             return fresh;
           }
           return current;
         });
         const customTargets = await getTargets();
-        setTargets((prev) => {
-          const merged = { ...BUILTIN_TARGETS };
-          Object.entries(customTargets).forEach(([key, t]) => { merged[key] = buildTargetEntry(t); });
+        setTargets(() => {
+          const merged = {};
+          Object.entries(customTargets).forEach(([key, tgt]) => { merged[key] = buildTargetEntry(tgt); });
           return merged;
         });
       } catch { /* transient network errors are fine to ignore while polling */ }
@@ -69,6 +80,7 @@ export default function LiveDisplay() {
   }
 
   const dims = gridDims(screen);
+  const spans = (screen.slotSpans && screen.slotSpans.length === screen.slots.length) ? screen.slotSpans : screen.slots.map(() => 1);
 
   return (
     <div className="fixed inset-0 bg-black">
@@ -78,7 +90,7 @@ export default function LiveDisplay() {
       >
         {/* key includes slot content so React remounts (and reconnects) interactive cells when a slot's target changes */}
         {screen.slots.map((k, i) => (
-          <div key={`${i}-${k}`} className="relative overflow-hidden bg-[#0B1220]">
+          <div key={`${i}-${k}`} className="relative overflow-hidden bg-[#0B1220]" style={{ gridColumn: `span ${spans[i]}` }}>
             <FullCell targetKey={k} targets={targets} />
           </div>
         ))}

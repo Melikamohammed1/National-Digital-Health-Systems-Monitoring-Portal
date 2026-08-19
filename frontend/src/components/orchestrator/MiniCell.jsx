@@ -1,15 +1,15 @@
 import { useEffect, useState } from 'react';
-import { DASH } from '../../services/mockDashboards.js';
 import { USE_MOCK } from '../../services/api.js';
 import BackendRequiredNotice from '../common/BackendRequiredNotice.jsx';
 
-/** Screenshot-backed <img> that refreshes itself every 8s (matches server cache TTL). */
-function LiveShot({ src, className }) {
+/** Screenshot-backed <img> that refreshes itself on a configurable interval
+ *  (target.refreshSeconds — see AddSystemModal's "Refresh Interval" field). */
+function LiveShot({ src, refreshMs, className }) {
   const [bust, setBust] = useState(Date.now());
   useEffect(() => {
-    const t = setInterval(() => setBust(Date.now()), 8000);
+    const t = setInterval(() => setBust(Date.now()), refreshMs);
     return () => clearInterval(t);
-  }, []);
+  }, [refreshMs]);
   return <img className={className} src={`${src}&t=${bust}`} loading="lazy" />;
 }
 
@@ -23,9 +23,10 @@ export default function MiniCell({ targetKey, targets }) {
   }
   const t = targets[targetKey];
 
-  // Custom targets (Add System / quick-browse) need the real backend —
-  // the embedding proxy and the Puppeteer session both live there.
-  if ((t.iframe || t.screenshot || t.interactive) && USE_MOCK) {
+  // Every target needs the real backend — the embedding proxy and the
+  // Puppeteer session both live there. Show a clear notice instead of a
+  // broken iframe/canvas while running on mock data.
+  if (USE_MOCK) {
     return <BackendRequiredNotice name={t.name} color={t.color} compact />;
   }
 
@@ -44,28 +45,13 @@ export default function MiniCell({ targetKey, targets }) {
     );
   }
 
-  // interactive-mode targets show the cheap periodic screenshot in the thumbnail
-  if (t.screenshot || t.interactive) {
-    return (
-      <div className="relative overflow-hidden h-full bg-[#0B1220]">
-        <MiniBar t={t} bg={t.color} />
-        <LiveShot src={t.shotUrl} className="w-full h-full object-cover block bg-white" />
-      </div>
-    );
-  }
-
-  const d = DASH[targetKey];
+  // Interactive-mode (and genuine screenshot-mode) targets show the cheap
+  // periodic screenshot in the thumbnail — never a live Puppeteer session,
+  // that would be wasteful for a tiny preview nobody's driving.
   return (
-    <div className="relative overflow-hidden h-full" style={{ background: t.color }}>
-      <MiniBar t={t} />
-      <div className="flex gap-[3px] px-[5px]">
-        {d.stats.map(([v, l], i) => (
-          <div key={i} className="bg-white/10 rounded-[3px] px-1 py-[3px] flex-1 min-w-0">
-            <b className="block text-[6.5px] text-white font-extrabold">{v}</b>
-            <span className="text-[4.6px] text-white/65 font-semibold">{l}</span>
-          </div>
-        ))}
-      </div>
+    <div className="relative overflow-hidden h-full bg-[#0B1220]">
+      <MiniBar t={t} bg={t.color} />
+      <LiveShot src={t.shotUrl} refreshMs={t.refreshSeconds * 1000} className="w-full h-full object-cover block bg-white" />
     </div>
   );
 }

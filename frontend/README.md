@@ -1,188 +1,43 @@
-# React + Vite
+# Mosaic Wall — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + Vite + Tailwind CSS admin dashboard and kiosk display for the National Digital Health Systems Monitoring Portal. See the [root README](../README.md) for setup/run instructions — this covers what's actually in here.
 
-Currently, two official plugins are available:
+## Pages
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+| Route | Component | Who sees it |
+|---|---|---|
+| `/login` | `pages/Login.jsx` | Anyone |
+| `/admin/orchestrator` | `pages/Orchestrator.jsx` | Signed-in users (Admin gets full control, Viewer gets read-only) |
+| `/display/:screenId` | `pages/LiveDisplay.jsx` | Public, no login — this is what the physical kiosk screen shows |
 
-## React Compiler
+## Structure
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-## 📂 Project Directory Architecture (`/frontend`)
-
-```text
-frontend/
-├── public/                  # Static public assets, favicons, and branding icons
-├── src/
-│   ├── assets/              # Static images, logos (Ministry of Health), and SVG icons
-│   ├── components/          # Modular and reusable UI components
-│   │   ├── common/          # Low-level UI elements (Buttons, Inputs, Badges, Modals, Cards)
-│   │   ├── layout/          # Main application framing (Header, Sidebar, Navigation Shell)
-│   │   └── orchestrator/    # Screen cards, slot selectors, live preview containers
-│   ├── context/             # Global React Context stores (Auth state, UI Layout presets, Active view)
-│   ├── pages/               # Main application pages/routes
-│   │   ├── Login.jsx        # User login and credential entry page
-│   │   ├── Orchestrator.jsx # Admin interface for managing physical screens & grid slots
-│   │   └── LiveDisplay.jsx  # Dynamic multi-slot iframe renderer view
-│   ├── services/            # API client calls and mock data providers
-│   ├── styles/              # Global CSS stylesheets and Tailwind configuration
-│   ├── utils/               # Formatters, URL helpers, and layout grid calculators
-│   ├── App.jsx              # Core application router and provider wrapper
-│   └── main.jsx             # React entry point
-├── .gitignore
-├── package.json
-└── README.md
+```
+src/
+├── pages/                    route-level components (Login, Orchestrator, LiveDisplay)
+├── components/
+│   ├── layout/                Header, Sidebar
+│   ├── orchestrator/           screen cards, add-system modal, user management, activity log
+│   ├── display/                the three dashboard rendering modes (iframe/screenshot/interactive)
+│   └── common/                 Button, Modal, Toast, StatusBadge — generic UI primitives
+├── context/                   AuthContext (login/session), ToastContext (notifications)
+├── services/                  api.js (backend client), targetHelpers.js, mockData.js
+├── utils/                     gridHelpers.js (layout math), devicePresets.js, urlHelpers.js
+└── styles/                    global Tailwind entry point
 ```
 
-## Current Sprint Focus: Frontend Development Phase
+## Mock mode
 
-Development for this phase is dedicated entirely to building out the user interface components and pages.
+`src/services/api.js` exports `USE_MOCK`. When `true`, every API call reads/writes an in-memory array instead of hitting the real backend — useful for frontend-only work with no server running. It's currently `false` (talking to the real backend). Every exported function has the same name/signature in both modes, so components never branch on `USE_MOCK` themselves.
 
-### Frontend Key Deliverables
+## Talking to the backend
 
-#### Authentication UI (`/login`)
+`vite.config.js` proxies `/api` and `/ws` requests to `http://localhost:4000` during development — no CORS setup needed, no need to hardcode a backend URL anywhere in the code.
 
-- Login form with input validation and session context handling.
+## Display modes
 
-#### Dynamic Screen Orchestrator UI (`/admin/orchestrator`)
+A dashboard assigned to a screen slot renders one of three ways, chosen when it's added:
 
-##### Sidebar Navigation
-
-- Quick access links for Control Hub, System Inventory, and Access Keys.
-
-##### Screen Registration Cards
-
-- Status overview panels tracking registered screens (Online, Standby, Offline).
-
-##### Layout Switcher
-
-- Controls to set screen layout configurations:
-  - Single
-  - 2x2 Grid
-  - 3-Column
-  - Custom
-
-##### Slot Mapping Interface
-
-- Configurable dropdowns to assign specific health dashboard URLs to display slots.
-
-##### Live Thumbnail Preview
-
-- Interactive side-panel visualizing slot arrangement in real time.
-
-#### Live Display Screen View (`/display`)
-
-- Dynamic multi-panel container rendering target websites via responsive iframes.
-- Configurable automatic refresh interval mechanism and individual panel header controls.[cite: 1]
-
-#### Reusable UI Component Library
-
-- Standardized design tokens.
-- Status indicator badges (Online/Standby/Offline).
-- Custom control buttons.[cite: 1]
-
----
-
-## 🛠️ Getting Started
-
-### Prerequisites
-
-- Node.js: v18.0.0 or higher
-- npm: v9.0.0 or higher
-
-### Local Setup Instructions
-
-Navigate to the frontend directory:
-
-```bash
-cd frontend
-```
-
-Install project dependencies:
-
-```bash
-npm install
-``` 
-
-Start the local Vite development server:
-
-```bash
-npm run dev
-```
-
-Open `http://localhost:5173` in your browser to view the application.
-
----
-
-## 🤝 Collaboration & Git Workflow Guidelines
-
-To ensure clean coordination among frontend team members, strictly follow these git practices.
-
-### Branch Naming Conventions
-
-Always create dedicated feature branches from `main`.
-
-```text
-feat/login-page
-feat/screen-orchestrator-ui
-feat/live-grid-display
-feat/ui-components-badges
-```
-
-### Development Steps
-
-Pull the latest changes:
-
-```bash
-git checkout main
-git pull origin main
-```
-
-Create your feature branch:
-
-```bash
-git checkout -b feat/your-feature-name
-```
-
-Commit changes locally using standard prefixes.
-
-- **feat:** for new UI components or routes.
-- **fix:** for layout or logic bug fixes.
-- **style:** for CSS, styling, or formatting updates.
-
-Example:
-
-```bash
-git commit -m "feat(orchestrator): create layout selection button group"
-```
-
-Push your branch and submit a Pull Request:
-
-```bash
-git push origin feat/your-feature-name
-```
-
----
-
-## Design System Tokens
-
-### Primary Colors
-
-- Deep Navy (`#0F172A`)
-- Primary Blue (`#2563EB`)
-
-### Status Badges
-
-- 🟢 Online: Green (`#22C55E`) [cite: 1]
-- 🟡 Standby: Amber (`#F59E0B`) [cite: 1]
-- 🔴 Offline: Red (`#EF4444`) [cite: 1]
-
-### Typography
-
-- System Sans-Serif
-- Inter
+- **Interactive Remote Session** — a real browser tab runs server-side and streams live over WebSocket; touch/mouse/keyboard get relayed back. Works on any site, including ones that block iframes.
+- **Live Embed** — a real iframe, proxied through the backend to strip framing-restriction headers.
+- **Auto-Refresh Screenshot** — a periodic snapshot on a configurable interval. Lightest weight, not interactive.

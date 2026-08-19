@@ -4,3 +4,7 @@
 ndhs-backend/
 ndhs-frontend/
 package-lock.json.orphaned-stub
+
+# Root-level devDependencies (concurrently) — backend/ and frontend/
+# already have their own .gitignore for their own node_modules/.
+node_modules/
