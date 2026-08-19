@@ -1,7 +1,3 @@
-/** Shown in place of live-embed / interactive-session content while
- *  USE_MOCK is true (services/api.js) — those features need the real
- *  backend (the embedding proxy and the Puppeteer-driven WebSocket
- *  session), which isn't running yet in this frontend-only phase. */
 export default function BackendRequiredNotice({ name, color, compact }) {
   if (compact) {
     return (
@@ -21,7 +17,6 @@ export default function BackendRequiredNotice({ name, color, compact }) {
       <div className="text-white font-bold text-sm">{name}</div>
       <p className="text-white/50 text-[11.5px] max-w-[280px] leading-relaxed">
         This is a live/interactive target — it connects once the backend server is running.
-        Until then, this is exactly what a real screen will show for it.
       </p>
     </div>
   );
