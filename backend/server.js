@@ -1,10 +1,16 @@
-require("dotenv").config();
+const http = require('http');
+const app = require('./app');
+const config = require('./config/env');
+const { attachInteractiveSessionServer } = require('./services/interactiveSessionService');
+const { sweepOfflineScreens } = require('./services/screenService');
 
-const app = require("./app");
+const httpServer = http.createServer(app);
+attachInteractiveSessionServer(httpServer);
 
-const PORT = process.env.PORT || 4000;
+// Demotes screens that stopped heartbeating to 'offline' — see
+// Screen.sweepOffline / screenService.OFFLINE_TIMEOUT_MS.
+setInterval(sweepOfflineScreens, 15_000);
 
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+httpServer.listen(config.PORT, () => {
+  console.log(`Mosaic Wall backend running at http://localhost:${config.PORT}`);
 });
