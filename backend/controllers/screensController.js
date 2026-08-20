@@ -6,31 +6,31 @@ function actorFrom(req) {
 }
 
 exports.list = asyncHandler(async (req, res) => {
-  res.json(screenService.listScreens());
+  res.json(await screenService.listScreens());
 });
 
 exports.getOne = asyncHandler(async (req, res) => {
-  res.json(screenService.getScreen(req.params.id));
+  res.json(await screenService.getScreen(req.params.id));
 });
 
 exports.create = asyncHandler(async (req, res) => {
-  const screen = screenService.registerScreen(req.body, actorFrom(req));
+  const screen = await screenService.registerScreen(req.body, actorFrom(req));
   res.status(201).json(screen);
 });
 
 exports.update = asyncHandler(async (req, res) => {
-  res.json(screenService.updateScreen(req.params.id, req.body, actorFrom(req)));
+  res.json(await screenService.updateScreen(req.params.id, req.body, actorFrom(req)));
 });
 
 exports.reconnect = asyncHandler(async (req, res) => {
-  res.json(screenService.reconnectScreen(req.params.id, actorFrom(req)));
+  res.json(await screenService.reconnectScreen(req.params.id, actorFrom(req)));
 });
 
 exports.heartbeat = asyncHandler(async (req, res) => {
-  res.json(screenService.heartbeatScreen(req.params.id));
+  res.json(await screenService.heartbeatScreen(req.params.id));
 });
 
 exports.remove = asyncHandler(async (req, res) => {
-  screenService.removeScreen(req.params.id, actorFrom(req));
+  await screenService.removeScreen(req.params.id, actorFrom(req));
   res.status(204).end();
 });

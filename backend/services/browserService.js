@@ -13,7 +13,13 @@ async function getBrowser() {
       throw new Error('This feature requires the optional "puppeteer" package. Run: npm install puppeteer');
     }
     browserPromise = puppeteer
-      .launch({ headless: 'new', args: ['--no-sandbox', '--disable-setuid-sandbox'] })
+      .launch({
+        headless: 'new',
+        // Canvas/WebGL-based map tiles (e.g. OpenStreetMap) render solid
+        // black in headless Chrome without a software GL backend — there's
+        // no real GPU to hand it, so point it at SwiftShader instead.
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--use-gl=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist']
+      })
       .catch((err) => {
         console.error('[browserService] Chromium launch failed:', err.message);
         browserPromise = null;

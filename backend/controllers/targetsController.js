@@ -6,20 +6,20 @@ function actorFrom(req) {
 }
 
 exports.list = asyncHandler(async (req, res) => {
-  res.json(targetService.listTargets());
+  res.json(await targetService.listTargets());
 });
 
 exports.create = asyncHandler(async (req, res) => {
-  const target = targetService.registerTarget(req.body, actorFrom(req));
+  const target = await targetService.registerTarget(req.body, actorFrom(req));
   res.status(201).json(target);
 });
 
 exports.update = asyncHandler(async (req, res) => {
-  const target = targetService.updateTarget(req.params.key, req.body, actorFrom(req));
+  const target = await targetService.updateTarget(req.params.key, req.body, actorFrom(req));
   res.json(target);
 });
 
 exports.remove = asyncHandler(async (req, res) => {
-  targetService.removeTarget(req.params.key, actorFrom(req));
+  await targetService.removeTarget(req.params.key, actorFrom(req));
   res.status(204).end();
 });

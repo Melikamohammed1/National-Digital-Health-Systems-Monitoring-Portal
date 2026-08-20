@@ -9,7 +9,7 @@ exports.health = asyncHandler(async (req, res) => {
 // same data /api/screens already exposes, useful for a dashboard widget
 // that doesn't want to fetch and count the full list itself.
 exports.status = asyncHandler(async (req, res) => {
-  const screens = screenService.listScreens();
+  const screens = await screenService.listScreens();
   const counts = screens.reduce(
     (acc, s) => { acc[s.status] = (acc[s.status] || 0) + 1; return acc; },
     { online: 0, standby: 0, offline: 0 }

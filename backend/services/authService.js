@@ -4,8 +4,8 @@ const { signToken } = require('../utils/jwt');
 const { HttpError } = require('../utils/HttpError');
 const activityLog = require('./activityLogService');
 
-function login(username, password) {
-  const user = User.findByUsername(username);
+async function login(username, password) {
+  const user = await User.findByUsername(username);
   if (!user || !bcrypt.compareSync(password, user.passwordHash)) {
     // Logged even when the username itself doesn't exist — that's the
     // actually useful half of a login history (spotting repeated failed

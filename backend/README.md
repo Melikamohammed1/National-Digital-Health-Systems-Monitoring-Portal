@@ -12,19 +12,41 @@ exactly, so connecting it is a one-line flag flip, not a rewrite.
 
 ```bash
 npm install
-cp .env.example .env   # optional — sensible defaults work without this
+cp .env.example .env
 npm start               # or: npm run dev  (auto-restarts on file changes)
 ```
 
-Server runs at **http://localhost:4000**. `data.sqlite` is created next to
-`server.js` on first run — delete it to reset to seed data. If an old
-`data.json` (from before the SQLite migration) is sitting there on that
-first run, it's migrated in automatically and renamed to
-`data.json.migrated` as a backup.
+Server runs at **http://localhost:4000**.
 
-Requires **Node 22.5+** — storage uses Node's built-in `node:sqlite`
-(no native module to install or compile), which only exists from that
-version onward.
+### Database — shared Turso, not a local file
+
+This project uses a **shared remote database** (Turso/libSQL) so every
+teammate sees the same screens, targets, users, and activity log — not
+a separate copy on each machine.
+
+**To connect to the shared database**, add these two lines to your own
+`.env` (ask whoever set up the Turso project — currently Member 1 — for
+the actual values over a private channel like Slack/DM, never a commit
+or a public channel):
+
+```
+TURSO_DATABASE_URL=libsql://<the-project's-database-name>.turso.io
+TURSO_AUTH_TOKEN=<the-auth-token>
+```
+
+That's it — no schema setup, no seeding, nothing else to run. The next
+`npm start` connects straight to the shared data.
+
+**If you leave both unset**, the backend transparently falls back to a
+local SQLite file (`data.sqlite`, created next to `server.js`) — useful
+for offline work or throwaway experiments, but changes there are only
+visible to you, not the team. Delete that file to reset it to seed data.
+
+`.env` is gitignored on purpose — **never commit real Turso credentials**.
+Only `.env.example` (with no real values) belongs in git.
+
+Requires **Node 22.5+** and the `@libsql/client` package (already in
+`package.json` — installed by `npm install`, nothing extra to set up).
 
 ```bash
 npm test                # runs tests/ via Node's built-in test runner
@@ -103,13 +125,13 @@ can `require('../app')` and spin up an ephemeral server per test without
 port conflicts or a real process running. `server.js` is the only file
 that actually starts listening — it's what `npm start` runs.
 
-**On storage:** `database/connection.js` opens a real SQLite database via
-Node's built-in `node:sqlite` (synchronous `prepare`/`run`/`get`/`all` —
-no third-party driver, nothing to native-compile). Models talk to it
-directly with SQL; controllers/services/routes never touch it. This
-replaced an earlier JSON-file-store phase — `connection.js` still
-contains the one-time migration path that reads a legacy `data.json`
-(if found) into the new database on first run.
+**On storage:** `database/connection.js` connects via `@libsql/client` —
+to the shared Turso database when `TURSO_DATABASE_URL` is set, or a
+local SQLite file otherwise (same client, same SQL, just a different
+transport). Every call is async now. Models talk to it directly with
+SQL; controllers/services/routes never touch it. `init()` is idempotent
+and must be awaited once before the first query (see `server.js` and
+each test file's `test.before()` hook).
 
 ---
 

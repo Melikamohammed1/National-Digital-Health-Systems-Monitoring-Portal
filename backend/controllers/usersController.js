@@ -6,15 +6,15 @@ function actorFrom(req) {
 }
 
 exports.list = asyncHandler(async (req, res) => {
-  res.json(userService.listUsers());
+  res.json(await userService.listUsers());
 });
 
 exports.create = asyncHandler(async (req, res) => {
-  const user = userService.registerUser(req.body, actorFrom(req));
+  const user = await userService.registerUser(req.body, actorFrom(req));
   res.status(201).json(user);
 });
 
 exports.remove = asyncHandler(async (req, res) => {
-  userService.removeUser(req.params.id, actorFrom(req));
+  await userService.removeUser(req.params.id, actorFrom(req));
   res.status(204).end();
 });

@@ -5,7 +5,7 @@ const User = require('../models/User');
 /** Attaches req.user when a valid `Authorization: Bearer <token>` header
  *  is present; otherwise rejects with 401. Not currently applied to
  *  /api/screens or /api/targets — see README for why. */
-function requireAuth(req, res, next) {
+async function requireAuth(req, res, next) {
   const header = req.headers.authorization || '';
   const [scheme, token] = header.split(' ');
   if (scheme !== 'Bearer' || !token) {
@@ -13,7 +13,7 @@ function requireAuth(req, res, next) {
   }
   try {
     const payload = verifyToken(token);
-    const user = User.findById(payload.sub);
+    const user = await User.findById(payload.sub);
     if (!user) return next(new HttpError(401, 'Token refers to a user that no longer exists'));
     // Role comes from the DB record, not the token payload — a role change
     // (or account removal) takes effect on the user's very next request

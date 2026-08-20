@@ -26,7 +26,7 @@ function safeRefreshSeconds(mode, refreshSeconds) {
   return Math.min(MAX_REFRESH_SECONDS, Math.max(MIN_REFRESH_SECONDS, Math.round(n)));
 }
 
-function registerTarget({ name, url, mode, deviceType, refreshSeconds }, actor) {
+async function registerTarget({ name, url, mode, deviceType, refreshSeconds }, actor) {
   if (!name || !url) throw new HttpError(400, 'name and url are required');
 
   let fixedUrl = /^https?:\/\//i.test(url) ? url : 'https://' + url;
@@ -40,7 +40,7 @@ function registerTarget({ name, url, mode, deviceType, refreshSeconds }, actor) 
     note = normalized.note;
   }
 
-  const target = Target.create({
+  const target = await Target.create({
     name: name.trim(),
     url: fixedUrl,
     mode: useMode,
@@ -52,8 +52,8 @@ function registerTarget({ name, url, mode, deviceType, refreshSeconds }, actor) 
   return target;
 }
 
-function updateTarget(key, patch, actor) {
-  const existing = Target.findByKey(key);
+async function updateTarget(key, patch, actor) {
+  const existing = await Target.findByKey(key);
   if (!existing) throw new HttpError(404, 'Target not found');
 
   const next = {};
@@ -90,14 +90,14 @@ function updateTarget(key, patch, actor) {
     next.refreshSeconds = safeRefreshSeconds(useMode, patch.refreshSeconds ?? existing.refreshSeconds);
   }
 
-  const updated = Target.update(key, next);
+  const updated = await Target.update(key, next);
   activityLog.log({ ...actor, action: 'update', entityType: 'target', entityId: key, detail: `Updated system "${existing.name}"` });
   return updated;
 }
 
-function removeTarget(key, actor) {
-  const existing = Target.findByKey(key);
-  const removed = Target.remove(key);
+async function removeTarget(key, actor) {
+  const existing = await Target.findByKey(key);
+  const removed = await Target.remove(key);
   if (!removed) throw new HttpError(404, 'Target not found');
   activityLog.log({ ...actor, action: 'delete', entityType: 'target', entityId: key, detail: `Removed system "${existing?.name || key}"` });
 }
