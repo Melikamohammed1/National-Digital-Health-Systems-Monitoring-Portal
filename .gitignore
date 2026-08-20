@@ -8,3 +8,8 @@ package-lock.json.orphaned-stub
 # Root-level devDependencies (concurrently) — backend/ and frontend/
 # already have their own .gitignore for their own node_modules/.
 node_modules/
+
+# Frontend build output, copied here by `npm run build` (see app.js and
+# scripts/copy-frontend-dist.js) so the backend can serve it directly.
+# Generated on every deploy — never committed.
+backend/frontend/
