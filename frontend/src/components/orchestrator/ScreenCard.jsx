@@ -79,7 +79,7 @@ export default function ScreenCard({ screen: scr, targets, isAdmin, onUpdate, on
 
   return (
     <div className={`card ${isOffline ? 'opacity-90' : ''}`}>
-      <div className="flex justify-between items-start px-4.5 pt-4 pb-3">
+      <div className="flex justify-between items-start px-6 pt-4 pb-3">
         <div>
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="m-0 text-[15.5px] font-extrabold">{scr.name}</h3>
@@ -93,7 +93,7 @@ export default function ScreenCard({ screen: scr, targets, isAdmin, onUpdate, on
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-[1fr_250px] border-t border-border">
-        <div className={`px-4.5 py-4 md:border-r border-border ${(isOffline || !isAdmin) ? 'opacity-45 pointer-events-none' : ''}`}>
+        <div className={`px-6 py-4 md:border-r border-border min-w-0 ${(isOffline || !isAdmin) ? 'opacity-45 pointer-events-none' : ''}`}>
           <div className="field-label">Layout</div>
           <div className="flex gap-1.5 flex-wrap mb-4">
             {Object.entries(LAYOUTS).map(([key, l]) => {
@@ -186,7 +186,7 @@ export default function ScreenCard({ screen: scr, targets, isAdmin, onUpdate, on
           ))}
         </div>
 
-        <div className="px-4 py-4 bg-panel">
+        <div className="px-6 py-4 bg-panel">
           <div className="field-label mb-2">Live Preview</div>
           <div
             className={`bg-[#0B1220] rounded-lg overflow-hidden border border-[#0B1220] grid gap-[2px] aspect-video ${isOffline ? 'flex items-center justify-center text-[#5C6B8A] text-[10px] font-semibold' : ''}`}
@@ -212,7 +212,7 @@ export default function ScreenCard({ screen: scr, targets, isAdmin, onUpdate, on
         </div>
       </div>
 
-      <div className="flex justify-between items-center px-4.5 py-3.5 border-t border-border gap-3 flex-wrap">
+      <div className="flex justify-between items-center px-6 py-3.5 border-t border-border gap-3 flex-wrap">
         {isOffline ? (
           <>
             <div className="text-[11.5px] text-inkDim">⏱ Last seen {scr.lastSeen || '—'}</div>

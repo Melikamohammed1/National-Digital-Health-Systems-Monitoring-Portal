@@ -8,6 +8,7 @@ export default function Login() {
   const location = useLocation();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -42,10 +43,31 @@ export default function Login() {
         <p className="text-[12px] text-inkDim mb-5">Sign in to manage the Screen Orchestrator.</p>
 
         <label className="form-label">Username</label>
-        <input className="form-field mb-3.5" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="admin" autoFocus />
+        <input className="form-field mb-3.5" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Enter your username" autoFocus />
 
         <label className="form-label">Password</label>
-        <input type="password" className="form-field mb-1.5" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+        <div className="relative mb-1.5">
+          <input
+            type={showPassword ? 'text' : 'password'}
+            className="form-field pr-10"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((v) => !v)}
+            tabIndex={-1}
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-inkFaint hover:text-inkDim flex items-center justify-center w-5 h-5"
+          >
+            {showPassword ? (
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M3 3l18 18M10.6 10.7a2.5 2.5 0 003.5 3.5M9.4 5.5A10.6 10.6 0 0112 5c5.5 0 9 5 10 7-.5.9-1.7 2.7-3.5 4.2M6.4 6.8C4.6 8.1 3.3 9.9 2 12c1 2 4.5 7 10 7 1.4 0 2.6-.3 3.7-.8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            ) : (
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.8" /></svg>
+            )}
+          </button>
+        </div>
 
         {error && <p className="text-[11.5px] text-crit font-semibold mt-2">{error}</p>}
 
