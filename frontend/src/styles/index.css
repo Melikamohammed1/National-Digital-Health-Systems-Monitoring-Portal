@@ -52,7 +52,7 @@ body {
   .layout-opt.disabled { @apply opacity-40 pointer-events-none; }
 
   .slot-select {
-    @apply flex-1 border border-border rounded-md px-2.5 py-2 text-xs bg-white text-ink font-semibold;
+    @apply flex-1 min-w-0 border border-border rounded-md px-2.5 py-2 text-xs bg-white text-ink font-semibold;
   }
   .callout {
     @apply bg-accentDim border border-borderStrong rounded-lg px-3 py-2.5 text-[11px] leading-relaxed;

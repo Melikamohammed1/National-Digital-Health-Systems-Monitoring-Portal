@@ -1,12 +1,80 @@
 import { useAuth } from '../../context/AuthContext.jsx';
 import Button from '../common/Button.jsx';
+import { useEffect, useRef, useState } from 'react';
 
-export default function Sidebar({ targets, onAddSystem, onEditTarget, onRemoveTarget, onManageUsers, onViewActivity }) {
+const MIN_WIDTH = 200;
+const MAX_WIDTH = 420;
+const DEFAULT_WIDTH = 250;
+const STORAGE_KEY = 'mosaicwall_sidebar_width';
+
+export default function Sidebar({ targets, onAddSystem, onEditTarget, onRemoveTarget, onManageUsers, onViewActivity, isOpen, onClose }) {
   const { user, isAdmin, logout } = useAuth();
   const targetEntries = Object.entries(targets);
 
+  const [width, setWidth] = useState(() => {
+    const saved = Number(localStorage.getItem(STORAGE_KEY));
+    return saved >= MIN_WIDTH && saved <= MAX_WIDTH ? saved : DEFAULT_WIDTH;
+  });
+  const [isResizing, setIsResizing] = useState(false);
+  const resizing = useRef(false);
+
+  // Pointer Events cover mouse + touch/pen with one handler, so dragging
+  // the handle works the same whether it's a desktop mouse or a touchscreen.
+  useEffect(() => {
+    function onPointerMove(e) {
+      if (!resizing.current) return;
+      setWidth(Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, e.clientX)));
+    }
+    function onPointerUp() {
+      if (!resizing.current) return;
+      resizing.current = false;
+      setIsResizing(false);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      setWidth((w) => { localStorage.setItem(STORAGE_KEY, String(w)); return w; });
+    }
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    return () => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+    };
+  }, []);
+
+  function startResize(e) {
+    e.preventDefault();
+    resizing.current = true;
+    setIsResizing(true);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }
+
   return (
-    <aside className="w-[250px] shrink-0 bg-panel2 border-r border-border flex flex-col gap-4 p-3.5 sticky top-0 h-screen overflow-y-auto">
+    <>
+      {/* Backdrop — mobile only, closes the drawer on tap outside it. */}
+      {isOpen && <div className="fixed inset-0 bg-[rgba(10,18,36,0.45)] z-40 md:hidden" onClick={onClose} />}
+
+      <aside
+        style={{ width: `${width}px` }}
+        className={`shrink-0 bg-panel2 border-r border-border flex flex-col gap-4 p-3.5 h-screen overflow-y-auto
+                    fixed inset-y-0 left-0 z-50 transition-transform duration-200
+                    ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+                    md:sticky md:top-0 md:translate-x-0`}
+      >
+      {/* Drag handle — resizes the sidebar; width is remembered per-browser.
+          Kept fully inside the aside's own box (not hanging off the right
+          edge): aside has overflow-y-auto, and per the CSS overflow spec,
+          setting only one axis forces the other to compute as 'auto' too —
+          so anything positioned outside aside's bounds gets silently
+          clipped out of the hit-testable area. */}
+      <div
+        onPointerDown={startResize}
+        title="Drag to resize"
+        className="absolute top-0 right-0 h-full w-3 cursor-col-resize touch-none z-10 flex justify-center group/handle"
+      >
+        <span className={`w-[3px] h-full rounded-full transition-colors ${isResizing ? 'bg-accent' : 'bg-border group-hover/handle:bg-accent'}`} />
+      </div>
+
       <div className="flex items-center gap-2.5 px-0.5 pb-1">
         <div className="w-[34px] h-[34px] rounded-[9px] bg-accent flex items-center justify-center shrink-0 shadow-[0_4px_10px_-4px_rgba(47,95,224,0.6)]">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
@@ -17,6 +85,7 @@ export default function Sidebar({ targets, onAddSystem, onEditTarget, onRemoveTa
           MOSAIC
           <span className="block text-accent">WALL</span>
         </div>
+        <button onClick={onClose} aria-label="Close menu" className="ml-auto text-inkFaint hover:text-inkDim text-lg leading-none px-1 md:hidden">✕</button>
       </div>
 
       <div className="flex items-center gap-1.5 bg-white border border-border rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-inkDim">
@@ -98,6 +167,7 @@ export default function Sidebar({ targets, onAddSystem, onEditTarget, onRemoveTa
         </div>
       )}
       {isAdmin && <Button variant="primary" block onClick={onAddSystem}>+ Add New System / Website</Button>}
-    </aside>
+      </aside>
+    </>
   );
 }

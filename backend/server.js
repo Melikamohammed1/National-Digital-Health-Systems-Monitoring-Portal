@@ -16,8 +16,13 @@ const { sweepOfflineScreens } = require('./services/screenService');
   attachInteractiveSessionServer(httpServer);
 
   // Demotes screens that stopped heartbeating to 'offline' — see
-  // Screen.sweepOffline / screenService.OFFLINE_TIMEOUT_MS.
-  setInterval(sweepOfflineScreens, 15_000);
+  // Screen.sweepOffline / screenService.OFFLINE_TIMEOUT_MS. Now a network
+  // call (Turso), not a local disk read, so a transient connectivity blip
+  // must not become an unhandled rejection that crashes the whole process —
+  // just skip this tick and retry in 15s.
+  setInterval(() => {
+    sweepOfflineScreens().catch((err) => console.error('[sweepOfflineScreens] failed:', err.message));
+  }, 15_000);
 
   httpServer.listen(config.PORT, () => {
     console.log(`Mosaic Wall backend running at http://localhost:${config.PORT}`);

@@ -85,12 +85,12 @@ export default function LiveDisplay() {
   return (
     <div className="fixed inset-0 bg-black">
       <div
-        className="absolute inset-0 grid gap-[2px] bg-black"
+        className="absolute inset-0 grid gap-2.5 bg-black p-2.5"
         style={{ gridTemplateColumns: `repeat(${dims.cols},1fr)`, gridTemplateRows: `repeat(${dims.rows},1fr)` }}
       >
         {/* key includes slot content so React remounts (and reconnects) interactive cells when a slot's target changes */}
         {screen.slots.map((k, i) => (
-          <div key={`${i}-${k}`} className="relative overflow-hidden bg-[#0B1220]" style={{ gridColumn: `span ${spans[i]}` }}>
+          <div key={`${i}-${k}`} className="relative overflow-hidden bg-[#0B1220] rounded-xl" style={{ gridColumn: `span ${spans[i]}` }}>
             <FullCell targetKey={k} targets={targets} />
           </div>
         ))}
