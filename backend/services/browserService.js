@@ -18,7 +18,11 @@ async function getBrowser() {
         // Canvas/WebGL-based map tiles (e.g. OpenStreetMap) render solid
         // black in headless Chrome without a software GL backend — there's
         // no real GPU to hand it, so point it at SwiftShader instead.
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--use-gl=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist']
+        // --disable-dev-shm-usage: containerized hosts (Render, Docker, etc.)
+        // often give /dev/shm far less space than Chrome expects, which
+        // crashes it outright — this makes Chrome use disk-backed temp
+        // files instead. Harmless locally, necessary in production.
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--use-gl=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist']
       })
       .catch((err) => {
         console.error('[browserService] Chromium launch failed:', err.message);
