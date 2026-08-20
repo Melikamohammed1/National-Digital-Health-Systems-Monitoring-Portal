@@ -9,13 +9,13 @@ function listUsers() {
   return User.findAll();
 }
 
-function registerUser({ username, password, role }, actor) {
+async function registerUser({ username, password, role }, actor) {
   if (!username || !username.trim()) throw new HttpError(400, 'username is required');
   if (!password || password.length < 6) throw new HttpError(400, 'password must be at least 6 characters');
-  if (User.findByUsername(username.trim())) throw new HttpError(409, 'That username is already taken');
+  if (await User.findByUsername(username.trim())) throw new HttpError(409, 'That username is already taken');
 
   const safeRole = VALID_ROLES.has(role) ? role : 'viewer';
-  const user = User.create({
+  const user = await User.create({
     id: 'usr_' + Date.now().toString(36),
     username: username.trim(),
     passwordHash: bcrypt.hashSync(password, 10),
@@ -25,8 +25,8 @@ function registerUser({ username, password, role }, actor) {
   return user;
 }
 
-function removeUser(id, actor) {
-  const target = User.findById(id);
+async function removeUser(id, actor) {
+  const target = await User.findById(id);
   if (!target) throw new HttpError(404, 'User not found');
 
   // The only real guard needed: removing the last admin — including
@@ -35,11 +35,11 @@ function removeUser(id, actor) {
   // replacement. Deliberately not a separate "can't delete yourself" rule:
   // an admin stepping down is fine as long as another admin exists to
   // take over.
-  if (target.role === 'admin' && User.countByRole('admin') <= 1) {
+  if (target.role === 'admin' && (await User.countByRole('admin')) <= 1) {
     throw new HttpError(400, 'Cannot remove the last remaining admin account');
   }
 
-  User.remove(id);
+  await User.remove(id);
   activityLog.log({ ...actor, action: 'delete', entityType: 'user', entityId: id, detail: `Removed account "${target.username}"` });
 }
 

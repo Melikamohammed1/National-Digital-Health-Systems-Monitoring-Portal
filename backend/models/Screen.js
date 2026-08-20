@@ -1,4 +1,4 @@
-const db = require('../database/connection');
+const { db } = require('../database/connection');
 
 const LAYOUT_SIZES = { single: 1, '2x2': 4, '3col': 3, custom: 2 };
 
@@ -15,15 +15,17 @@ function rowToScreen(row) {
 }
 
 class Screen {
-  static findAll() {
-    return db.prepare('SELECT * FROM screens').all().map(rowToScreen);
+  static async findAll() {
+    const { rows } = await db.execute('SELECT * FROM screens');
+    return rows.map(rowToScreen);
   }
 
-  static findById(id) {
-    return rowToScreen(db.prepare('SELECT * FROM screens WHERE id = ?').get(id));
+  static async findById(id) {
+    const { rows } = await db.execute({ sql: 'SELECT * FROM screens WHERE id = ?', args: [id] });
+    return rowToScreen(rows[0]);
   }
 
-  static create({ name, layout, passcode }) {
+  static async create({ name, layout, passcode }) {
     const safeLayout = LAYOUT_SIZES[layout] ? layout : '2x2';
     const screen = {
       id: 'scr_' + Date.now().toString().slice(-6),
@@ -37,68 +39,79 @@ class Screen {
       slotSpans: Array.from({ length: LAYOUT_SIZES[safeLayout] }, () => 1),
       passcode: passcode || null
     };
-    db.prepare(`
-      INSERT INTO screens (id, name, location, ip, res, status, layout, slots, slotSpans, passcode)
-      VALUES (@id, @name, @location, @ip, @res, @status, @layout, @slots, @slotSpans, @passcode)
-    `).run({ ...screen, slots: JSON.stringify(screen.slots), slotSpans: JSON.stringify(screen.slotSpans) });
+    await db.execute({
+      sql: `INSERT INTO screens (id, name, location, ip, res, status, layout, slots, slotSpans, passcode)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [screen.id, screen.name, screen.location, screen.ip, screen.res, screen.status, screen.layout,
+        JSON.stringify(screen.slots), JSON.stringify(screen.slotSpans), screen.passcode]
+    });
     return screen;
   }
 
-  static update(id, patch) {
-    const existing = db.prepare('SELECT * FROM screens WHERE id = ?').get(id);
+  static async update(id, patch) {
+    const existing = await this.findById(id);
     if (!existing) return null;
+
     const allowed = ['name', 'layout', 'slots', 'slotSpans', 'status', 'location', 'ip', 'res'];
     const next = { ...existing };
     for (const key of allowed) {
-      if (key in patch) next[key] = (key === 'slots' || key === 'slotSpans') ? JSON.stringify(patch[key]) : patch[key];
+      if (key in patch) next[key] = patch[key];
     }
     // Keep slotSpans in sync with slots length whenever slots changed
     // (layout switch, custom slot count +/-) without the caller also
     // supplying a matching slotSpans — existing per-position spans carry
     // over, new positions default to span 1 (no resize applied).
     if ('slots' in patch && !('slotSpans' in patch)) {
-      const slots = JSON.parse(next.slots);
-      const prevSpans = JSON.parse(existing.slotSpans || '[]');
-      next.slotSpans = JSON.stringify(slots.map((_, i) => prevSpans[i] || 1));
+      next.slotSpans = next.slots.map((_, i) => existing.slotSpans[i] || 1);
     }
     if (next.status !== 'offline') next.lastSeen = null;
-    db.prepare(`
-      UPDATE screens SET name=@name, location=@location, ip=@ip, res=@res, status=@status,
-        layout=@layout, slots=@slots, slotSpans=@slotSpans, passcode=@passcode, lastSeen=@lastSeen
-      WHERE id=@id
-    `).run(next);
+
+    await db.execute({
+      sql: `UPDATE screens SET name=?, location=?, ip=?, res=?, status=?, layout=?, slots=?, slotSpans=?, passcode=?, lastSeen=?
+            WHERE id=?`,
+      args: [next.name, next.location, next.ip, next.res, next.status, next.layout,
+        JSON.stringify(next.slots), JSON.stringify(next.slotSpans), next.passcode, next.lastSeen ?? null, id]
+    });
     return this.findById(id);
   }
 
-  static reconnect(id) {
+  static async reconnect(id) {
     // Stamped "now", not cleared — gives the display page a full heartbeat
     // window to actually check in before sweepOffline() would otherwise
     // treat a missing lastSeen as instantly stale.
-    const result = db.prepare("UPDATE screens SET status='online', lastSeen=? WHERE id=?").run(Date.now(), id);
-    return result.changes > 0 ? this.findById(id) : null;
+    const result = await db.execute({
+      sql: "UPDATE screens SET status='online', lastSeen=? WHERE id=?",
+      args: [Date.now(), id]
+    });
+    return result.rowsAffected > 0 ? this.findById(id) : null;
   }
 
   // Called by the (unauthenticated) /display/:id page itself, on an
-  // interval, to prove it's actually up — this is what makes `status`
-  // real-time instead of a manually-set claim.
-  static heartbeat(id) {
-    const result = db.prepare("UPDATE screens SET status='online', lastSeen=? WHERE id=?").run(Date.now(), id);
-    return result.changes > 0 ? this.findById(id) : null;
+  // interval — this is what makes `status` real-time instead of a
+  // manually-set claim.
+  static async heartbeat(id) {
+    const result = await db.execute({
+      sql: "UPDATE screens SET status='online', lastSeen=? WHERE id=?",
+      args: [Date.now(), id]
+    });
+    return result.rowsAffected > 0 ? this.findById(id) : null;
   }
 
   // Runs on a timer (see server.js) — demotes any screen that stopped
   // heartbeating to 'offline'. Screens with no lastSeen at all are left
   // alone: they were either never connected or just manually reconnected,
   // not proven stale.
-  static sweepOffline(timeoutMs) {
-    db.prepare(`
-      UPDATE screens SET status='offline'
-      WHERE status='online' AND lastSeen IS NOT NULL AND (? - lastSeen) > ?
-    `).run(Date.now(), timeoutMs);
+  static async sweepOffline(timeoutMs) {
+    await db.execute({
+      sql: `UPDATE screens SET status='offline'
+            WHERE status='online' AND lastSeen IS NOT NULL AND (? - lastSeen) > ?`,
+      args: [Date.now(), timeoutMs]
+    });
   }
 
-  static remove(id) {
-    return db.prepare('DELETE FROM screens WHERE id = ?').run(id).changes > 0;
+  static async remove(id) {
+    const result = await db.execute({ sql: 'DELETE FROM screens WHERE id = ?', args: [id] });
+    return result.rowsAffected > 0;
   }
 }
 

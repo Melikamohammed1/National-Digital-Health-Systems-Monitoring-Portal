@@ -1,30 +1,37 @@
-const db = require('../database/connection');
+const { db } = require('../database/connection');
 
 class User {
-  static findAll() {
-    return db.prepare('SELECT id, username, role FROM users').all();
+  static async findAll() {
+    const { rows } = await db.execute('SELECT id, username, role FROM users');
+    return rows;
   }
 
-  static findByUsername(username) {
-    return db.prepare('SELECT * FROM users WHERE username = ?').get(username) || null;
+  static async findByUsername(username) {
+    const { rows } = await db.execute({ sql: 'SELECT * FROM users WHERE username = ?', args: [username] });
+    return rows[0] || null;
   }
 
-  static findById(id) {
-    return db.prepare('SELECT * FROM users WHERE id = ?').get(id) || null;
+  static async findById(id) {
+    const { rows } = await db.execute({ sql: 'SELECT * FROM users WHERE id = ?', args: [id] });
+    return rows[0] || null;
   }
 
-  static create({ id, username, passwordHash, role }) {
-    db.prepare('INSERT INTO users (id, username, passwordHash, role) VALUES (?, ?, ?, ?)')
-      .run(id, username, passwordHash, role);
+  static async create({ id, username, passwordHash, role }) {
+    await db.execute({
+      sql: 'INSERT INTO users (id, username, passwordHash, role) VALUES (?, ?, ?, ?)',
+      args: [id, username, passwordHash, role]
+    });
     return { id, username, role };
   }
 
-  static remove(id) {
-    return db.prepare('DELETE FROM users WHERE id = ?').run(id).changes > 0;
+  static async remove(id) {
+    const result = await db.execute({ sql: 'DELETE FROM users WHERE id = ?', args: [id] });
+    return result.rowsAffected > 0;
   }
 
-  static countByRole(role) {
-    return db.prepare('SELECT COUNT(*) as count FROM users WHERE role = ?').get(role).count;
+  static async countByRole(role) {
+    const { rows } = await db.execute({ sql: 'SELECT COUNT(*) as count FROM users WHERE role = ?', args: [role] });
+    return Number(rows[0].count);
   }
 }
 

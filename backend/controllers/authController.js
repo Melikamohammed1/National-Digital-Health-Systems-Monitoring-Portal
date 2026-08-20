@@ -3,7 +3,7 @@ const authService = require('../services/authService');
 
 exports.login = asyncHandler(async (req, res) => {
   const { username, password } = req.body;
-  const result = authService.login(username, password);
+  const result = await authService.login(username, password);
   res.json(result);
 });
 

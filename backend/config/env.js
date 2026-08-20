@@ -5,12 +5,14 @@ module.exports = {
   PORT: process.env.PORT || 4000,
   NODE_ENV: process.env.NODE_ENV || 'development',
 
-  // SQLite database file — see database/connection.js.
+  // Local fallback database file — used when TURSO_DATABASE_URL isn't set,
+  // so solo/offline dev works with zero account/network setup.
   DATA_FILE: process.env.DATA_FILE || path.join(__dirname, '..', 'data.sqlite'),
 
-  // Fixed, not overridable via env — the old JSON-file store's path, kept
-  // only so connection.js can migrate real data from it once on first run.
-  LEGACY_JSON_FILE: path.join(__dirname, '..', 'data.json'),
+  // Remote database (Turso/libSQL) — see database/connection.js. Leave both
+  // unset to use the local file above instead.
+  TURSO_DATABASE_URL: process.env.TURSO_DATABASE_URL || null,
+  TURSO_AUTH_TOKEN: process.env.TURSO_AUTH_TOKEN || null,
 
   // Auth
   JWT_SECRET: process.env.JWT_SECRET || 'dev-only-insecure-secret-change-me',

@@ -1,4 +1,4 @@
-const db = require('../database/connection');
+const { db } = require('../database/connection');
 
 // Muted slate/gray tones — enough hue drift between entries to tell panels
 // apart at a glance, without a saturated rainbow look.
@@ -11,19 +11,21 @@ function rowToTarget(row) {
 }
 
 class Target {
-  static findAll() {
-    const rows = db.prepare('SELECT * FROM targets').all();
+  static async findAll() {
+    const { rows } = await db.execute('SELECT * FROM targets');
     const targets = {};
     for (const { key, ...rest } of rows) targets[key] = rest;
     return targets;
   }
 
-  static findByKey(key) {
-    return rowToTarget(db.prepare('SELECT * FROM targets WHERE key = ?').get(key));
+  static async findByKey(key) {
+    const { rows } = await db.execute({ sql: 'SELECT * FROM targets WHERE key = ?', args: [key] });
+    return rowToTarget(rows[0]);
   }
 
-  static create({ name, url, mode, note, deviceType, refreshSeconds }) {
-    const { count } = db.prepare('SELECT COUNT(*) as count FROM targets').get();
+  static async create({ name, url, mode, note, deviceType, refreshSeconds }) {
+    const { rows } = await db.execute('SELECT COUNT(*) as count FROM targets');
+    const count = Number(rows[0].count);
     const key = 'custom_' + Date.now();
     const target = {
       name,
@@ -34,31 +36,28 @@ class Target {
       note: note || null,
       refreshSeconds: refreshSeconds ?? null
     };
-    db.prepare(`
-      INSERT INTO targets (key, name, url, mode, deviceType, color, note, refreshSeconds)
-      VALUES (@key, @name, @url, @mode, @deviceType, @color, @note, @refreshSeconds)
-    `).run({ key, ...target });
+    await db.execute({
+      sql: `INSERT INTO targets (key, name, url, mode, deviceType, color, note, refreshSeconds)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [key, target.name, target.url, target.mode, target.deviceType, target.color, target.note, target.refreshSeconds]
+    });
     return { key, ...target };
   }
 
-  static update(key, patch) {
-    const existing = db.prepare('SELECT * FROM targets WHERE key = ?').get(key);
+  static async update(key, patch) {
+    const existing = await this.findByKey(key);
     if (!existing) return null;
-    const allowed = ['name', 'url', 'mode', 'deviceType', 'note', 'refreshSeconds'];
-    const next = { ...existing };
-    for (const field of allowed) {
-      if (field in patch) next[field] = patch[field];
-    }
-    db.prepare(`
-      UPDATE targets SET name=@name, url=@url, mode=@mode, deviceType=@deviceType,
-        color=@color, note=@note, refreshSeconds=@refreshSeconds
-      WHERE key=@key
-    `).run(next);
+    const next = { ...existing, ...patch };
+    await db.execute({
+      sql: `UPDATE targets SET name=?, url=?, mode=?, deviceType=?, color=?, note=?, refreshSeconds=? WHERE key=?`,
+      args: [next.name, next.url, next.mode, next.deviceType, next.color, next.note, next.refreshSeconds, key]
+    });
     return rowToTarget(next);
   }
 
-  static remove(key) {
-    return db.prepare('DELETE FROM targets WHERE key = ?').run(key).changes > 0;
+  static async remove(key) {
+    const result = await db.execute({ sql: 'DELETE FROM targets WHERE key = ?', args: [key] });
+    return result.rowsAffected > 0;
   }
 }
 
