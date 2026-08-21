@@ -11,6 +11,8 @@ export default function LiveDisplay() {
   const [screen, setScreen] = useState(null);
   const [targets, setTargets] = useState({});
   const [error, setError] = useState(false);
+  const [isTVMode, setIsTVMode] = useState(false);
+  const [controlsVisible, setControlsVisible] = useState(true);
 
   useEffect(() => {
     (async () => {
@@ -68,6 +70,47 @@ export default function LiveDisplay() {
     return () => document.removeEventListener('keydown', onKey);
   }, [navigate]);
 
+  // Tracks real browser fullscreen state — not just whatever we last set it
+  // to. This fires on Esc (the browser exits fullscreen before any JS can
+  // intervene) as much as it does on our own button click, so it's the only
+  // reliable way to know TV Mode actually turned off.
+  useEffect(() => {
+    const onFullscreenChange = () => setIsTVMode(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
+  }, []);
+
+  function toggleTVMode() {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      // requestFullscreen needs a direct user gesture (this click qualifies)
+      // and can reject if the browser/embedding context denies it — fail
+      // quietly rather than throwing an unhandled rejection.
+      document.documentElement.requestFullscreen().catch(() => {});
+    }
+  }
+
+  // In TV Mode the corner controls stay hidden until the mouse actually
+  // moves, then fade back out after a few seconds of no movement — keeps
+  // the screen clean for unattended viewing, same idea as a video player's
+  // auto-hiding scrubber.
+  useEffect(() => {
+    if (!isTVMode) { setControlsVisible(true); return; }
+    setControlsVisible(false);
+    let hideTimer = null;
+    const onMove = () => {
+      setControlsVisible(true);
+      clearTimeout(hideTimer);
+      hideTimer = setTimeout(() => setControlsVisible(false), 3000);
+    };
+    window.addEventListener('mousemove', onMove);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      clearTimeout(hideTimer);
+    };
+  }, [isTVMode]);
+
   if (error) {
     return (
       <div className="fixed inset-0 bg-black flex items-center justify-center text-white/70 text-sm font-semibold">
@@ -95,11 +138,28 @@ export default function LiveDisplay() {
           </div>
         ))}
       </div>
-      <div className="fixed bottom-0 right-0 w-[130px] h-[90px] z-[60] flex items-end justify-end p-3.5 group">
+      <div
+        className={`fixed bottom-0 left-0 w-[150px] h-[90px] z-[60] flex items-end justify-start p-3.5 group
+                     transition-opacity duration-500 ${isTVMode && !controlsVisible ? 'opacity-0 pointer-events-none' : ''}`}
+      >
+        <button
+          onClick={toggleTVMode}
+          className={`transition-opacity duration-500 bg-[rgba(15,20,35,0.85)] text-white
+                      border border-white/25 px-3.5 py-2 rounded-full text-[11px] font-bold flex items-center gap-1.5 backdrop-blur
+                      ${isTVMode ? 'opacity-100' : 'opacity-10 group-hover:opacity-100'}`}
+        >
+          {isTVMode ? '⤡ Exit TV Mode' : '⛶ TV Mode'}
+        </button>
+      </div>
+      <div
+        className={`fixed bottom-0 right-0 w-[150px] h-[90px] z-[60] flex items-end justify-end p-3.5 group
+                     transition-opacity duration-500 ${isTVMode && !controlsVisible ? 'opacity-0 pointer-events-none' : ''}`}
+      >
         <button
           onClick={() => navigate('/admin/orchestrator')}
-          className="opacity-10 group-hover:opacity-100 transition-opacity bg-[rgba(15,20,35,0.85)] text-white
-                     border border-white/25 px-3.5 py-2 rounded-full text-[11px] font-bold flex items-center gap-1.5 backdrop-blur"
+          className={`transition-opacity duration-500 bg-[rgba(15,20,35,0.85)] text-white
+                      border border-white/25 px-3.5 py-2 rounded-full text-[11px] font-bold flex items-center gap-1.5 backdrop-blur
+                      ${isTVMode ? 'opacity-100' : 'opacity-10 group-hover:opacity-100'}`}
         >
           ✕ Exit to Admin
         </button>
